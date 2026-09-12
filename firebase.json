@@ -6,6 +6,7 @@
       "firebase.json",
       ".firebaserc",
       "**/.superpowers/**",
+      "**/.freebuff/**",
       ".git/**",
       "**/node_modules/**",
       "docs/**",
@@ -14,6 +15,17 @@
       "package-lock.json",
       ".gitignore",
       "網址.txt"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
     ]
   }
 }
