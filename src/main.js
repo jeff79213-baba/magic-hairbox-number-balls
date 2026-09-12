@@ -1,7 +1,7 @@
 import {
   createState, todayStr, rollover, ballStatus,
   queuePositions, estimate, formatAccum, pruneDaily,
-  orderUpTo, setCurrent, batchCut, toggleOverdue, cutOverdue,
+  orderUpTo, setCurrent, batchCut, cutThrough, toggleOverdue, cutOverdue,
   setMinutes, setScheduled, cutBall, revertToGray, undo, resetAll,
 } from "./core.js";
 
@@ -10,6 +10,7 @@ const $ = (id) => document.getElementById(id);
 
 const grid = $("grid");
 const clockEl = $("clock");
+const overdueHintEl = $("overdueHint");
 const recordKey = "mhb-daily";
 
 function loadState() {
@@ -77,6 +78,32 @@ for (let i = 1; i <= TOTAL; i++) {
   grid.appendChild(el);
 }
 
+// 標題右側小字：過號提示（列出對應號碼球，點擊可跳至該球）
+function renderOverdueHint() {
+  const list = Array.from(new Set(state.overdue)).sort((a, b) => a - b);
+  overdueHintEl.replaceChildren();
+  const label = document.createElement("span");
+  label.className = "ov-label";
+  label.textContent = "過號";
+  overdueHintEl.appendChild(label);
+  if (!list.length) {
+    const none = document.createElement("span");
+    none.className = "ov-none";
+    none.textContent = "無";
+    overdueHintEl.appendChild(none);
+    return;
+  }
+  for (const n of list) {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "ov-chip";
+    chip.dataset.n = n;
+    chip.textContent = n;
+    chip.title = `跳到 ${n} 號`;
+    overdueHintEl.appendChild(chip);
+  }
+}
+
 function renderAll() {
   const seq = queuePositions(state);
   const seqSet = new Set(seq);
@@ -97,6 +124,7 @@ function renderAll() {
       whenEl.textContent = "";
     }
   }
+  renderOverdueHint();
 }
 
 const overdueModeBtn = $("overdueMode");
@@ -150,10 +178,11 @@ function handleBallAction(n, dir) {
   const st = ballStatus(state, n);
   switch (activeMode) {
     case "light":
-      commit(setCurrent(state, n, nowHHMM()));
+      // 灰色（未下訂）球：該號碼與之前的一次剪完（過號保留）
+      if (st === "gray") commit(cutThrough(state, n));
+      else commit(setCurrent(state, n, nowHHMM()));
       break;
     case "schedule":
-      if (st === "gray" || st === "cut" || st === "orange") break;
       pendingSchedule.n = n;
       baseTimeInput.value = nowHHMM();
       dlgTime.classList.remove("hidden");
@@ -223,8 +252,13 @@ btnUndo.addEventListener("click", () => { commit(undo(state)); });
 quickBtns.addEventListener("click", (e) => {
   const btn = e.target.closest("button[data-n]");
   if (!btn) return;
-  const n = +btn.dataset.n;
-  scrollToBall(n);
+  scrollToBall(+btn.dataset.n);
+});
+
+overdueHintEl.addEventListener("click", (e) => {
+  const chip = e.target.closest(".ov-chip");
+  if (!chip) return;
+  scrollToBall(+chip.dataset.n);
 });
 
 function scrollToBall(n) {

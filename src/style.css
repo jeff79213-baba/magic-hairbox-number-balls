@@ -36,6 +36,19 @@ h1 { margin: 0; font-size: 18px; padding-right: 8px; }
   font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums;
   color: var(--orange); margin-left: auto; padding-right: 2px;
 }
+.overdue-hint {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; color: #666; margin-left: 6px; min-width: 0;
+}
+.overdue-hint .ov-label { white-space: nowrap; }
+.overdue-hint .ov-none { color: #aaa; }
+.overdue-hint .ov-chip {
+  width: 22px; height: 22px; min-width: 22px; padding: 0; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: #fff; background: var(--blue); cursor: pointer;
+  border: 2px solid var(--ring); box-shadow: 0 0 0 1px #fff inset;
+}
 .row-label { font-size: 13px; color: #666; white-space: nowrap; }
 #quickBtns { display: flex; gap: 6px; flex-wrap: wrap; }
 #quickBtns button {
@@ -137,3 +150,5 @@ h1 { margin: 0; font-size: 18px; padding-right: 8px; }
 #recordList { max-height: 46vh; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
 #recordList li { display: flex; justify-content: space-between; padding: 6px 2px; border-bottom: 1px dashed #eee; font-size: 14px; }
 .ball[data-sched="1"] .when { color: #7b1fa2; font-weight: 700; }
+/* 有預定時間的球：即使是灰色或已剪，也把預定時間顯示出來（提示作用）*/
+.ball[data-sched="1"] .when { visibility: visible; }

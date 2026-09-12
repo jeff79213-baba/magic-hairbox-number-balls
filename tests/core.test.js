@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  TOTAL, createState, orderUpTo, setCurrent, batchCut,
+  TOTAL, createState, orderUpTo, setCurrent, batchCut, cutThrough,
   toggleOverdue, cutOverdue, setMinutes, ballStatus, undo, todayStr,
   queuePositions, estimate, formatAccum,
   recordDaily, pruneDaily, rollover, resetDay,
@@ -99,8 +99,9 @@ describe("batchCut", () => {
     expect(ballStatus(state, 19)).toBe("cut");
     expect(ballStatus(state, 10)).toBe("overdue");
     expect(ballStatus(state, 12)).toBe("overdue");
-    expect(ballStatus(state, 35)).toBe("blue");
+    expect(ballStatus(state, 35)).toBe("cut"); // 含滑動的號碼本身
     expect(ballStatus(state, 34)).toBe("cut");
+    expect(ballStatus(state, 36)).toBe("blue");
   });
   it("不會切到未 order 的球（35 維持 gray），且不下修 maxOrdered", () => {
     state = orderUpTo(state, 30);
@@ -110,18 +111,69 @@ describe("batchCut", () => {
   });
 });
 
+describe("cutThrough", () => {
+  it("灰球亮燈：該號碼與之前全部變 cut（含未下訂者）", () => {
+    state = orderUpTo(state, 30);
+    state = cutThrough(state, 40);
+    expect(ballStatus(state, 40)).toBe("cut");
+    expect(ballStatus(state, 31)).toBe("cut");
+    expect(ballStatus(state, 1)).toBe("cut");
+    expect(ballStatus(state, 41)).toBe("gray");
+    expect(state.grayOut).toEqual([]);
+  });
+  it("過號保留過號，亮燈中的球保留亮燈", () => {
+    state = orderUpTo(state, 30);
+    state = setCurrent(state, 5, "15:00");
+    state = toggleOverdue(state, 10);
+    state = cutThrough(state, 30);
+    expect(ballStatus(state, 10)).toBe("overdue");
+    expect(ballStatus(state, 5)).toBe("orange");
+    expect(ballStatus(state, 20)).toBe("cut");
+  });
+  it("已剪／有預定時間的球也一併整理為 cut", () => {
+    state = orderUpTo(state, 30);
+    state = setScheduled(state, 20, "14:00");
+    state = cutBall(state, 25);
+    state = cutThrough(state, 30);
+    expect(ballStatus(state, 20)).toBe("cut");
+    expect(state.scheduled).toEqual([]);
+    expect(ballStatus(state, 25)).toBe("cut");
+  });
+  it("下滑的號碼為 maxOrdered 之上：一併納入（仍保留過號）", () => {
+    state = orderUpTo(state, 10);
+    state = cutThrough(state, 12);
+    expect(state.maxOrdered).toBe(12);
+    expect(ballStatus(state, 12)).toBe("cut");
+  });
+  it("邊界 0 / 151：直接忽略", () => {
+    state = cutThrough(state, 0);
+    expect(state.cut).toEqual([]);
+    state = cutThrough(state, 151);
+    expect(state.cut).toEqual([]);
+  });
+});
+
 describe("toggleOverdue / cutOverdue", () => {
-  it("overdue 可來回切換；gray/cut/current 不可設為 overdue", () => {
+  it("overdue 可來回切換", () => {
     state = orderUpTo(state, 58);
     state = toggleOverdue(state, 30);
     expect(ballStatus(state, 30)).toBe("overdue");
     state = toggleOverdue(state, 30);
     expect(ballStatus(state, 30)).toBe("blue");
+  });
+  it("任何狀態都可設為過號：灰球可設、已剪改回過號、亮燈中退出亮燈", () => {
+    state = orderUpTo(state, 58);
     state = toggleOverdue(state, 60);
-    expect(ballStatus(state, 60)).toBe("gray");
+    expect(ballStatus(state, 60)).toBe("overdue");
+    state = cutBall(state, 40);
+    expect(ballStatus(state, 40)).toBe("cut");
+    state = toggleOverdue(state, 40);
+    expect(ballStatus(state, 40)).toBe("overdue");
+    expect(state.cut).not.toContain(40);
     state = setCurrent(state, 18, "15:00");
     state = toggleOverdue(state, 18);
-    expect(ballStatus(state, 18)).toBe("orange");
+    expect(ballStatus(state, 18)).toBe("overdue");
+    expect(state.current).toBeNull();
   });
   it("cutOverdue：將 overdue 的球標為 cut", () => {
     state = orderUpTo(state, 58);
@@ -425,19 +477,21 @@ describe("setScheduled", () => {
     expect(state.scheduled).toEqual([]);
     expect(state.history.length).toBe(1);
   });
-  it("gray / grayOut / cut / current 不可設", () => {
+  it("任何狀態都可設：灰球 / grayOut / 亮燈中 / 已剪", () => {
     state = orderUpTo(state, 30);
     state = setScheduled(state, 60, "14:00");
-    expect(state.scheduled).toEqual([]);
+    expect(state.scheduled).toEqual([{ n: 60, time: "14:00" }]);
     state.grayOut = [25];
-    state = setScheduled(state, 25, "14:00");
-    expect(state.scheduled).toEqual([]);
+    state = setScheduled(state, 25, "14:30");
+    expect(state.scheduled).toEqual([{ n: 25, time: "14:30" }, { n: 60, time: "14:00" }]);
     state = setCurrent(state, 5, "15:00");
-    state = setScheduled(state, 5, "15:00");
-    expect(state.scheduled).toEqual([]);
-    state = setCurrent(state, 6, "16:00");
-    state = setScheduled(state, 5, "15:00");
-    expect(state.scheduled).toEqual([]);
+    state = setScheduled(state, 5, "15:30");
+    expect(state.scheduled.some((o) => o.n === 5)).toBe(true);
+    expect(ballStatus(state, 5)).toBe("orange");
+    state = cutBall(state, 7);
+    state = setScheduled(state, 7, "16:00");
+    expect(state.scheduled.some((o) => o.n === 7)).toBe(true);
+    expect(ballStatus(state, 7)).toBe("cut");
   });
 });
 
@@ -510,12 +564,13 @@ describe("revertToGray", () => {
     expect(ballStatus(state, 15)).toBe("gray");
     expect(state.scheduled).toEqual([]);
   });
-  it("亮燈中的球不可還原（no-op）", () => {
+  it("亮燈中的球可還原：退出亮燈並變灰", () => {
     state = orderUpTo(state, 30);
     state = setCurrent(state, 8, "15:00");
     state = revertToGray(state, 8);
-    expect(ballStatus(state, 8)).toBe("orange");
-    expect(state.grayOut).toEqual([]);
+    expect(state.current).toBeNull();
+    expect(ballStatus(state, 8)).toBe("gray");
+    expect(state.grayOut).toContain(8);
   });
   it("已是灰色：no-op 不推 history", () => {
     state = orderUpTo(state, 30);

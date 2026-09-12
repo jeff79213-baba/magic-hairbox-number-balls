@@ -82,10 +82,12 @@ export function setCurrent(state, n, nowHHMM = null) {
   });
 }
 
+// 批量剪完：含點擊／滑動的那顆號碼本身（1..n），跳過亮燈中、過號、有預定時間與未下訂的球
+// （未下訂的球請改用 cutThrough，見下方註解）
 export function batchCut(state, n) {
   if (n < 1 || n > TOTAL) return state;
   return apply(state, (s) => {
-    for (let i = 1; i < n; i++) {
+    for (let i = 1; i <= n; i++) {
       if (i === s.current) continue;
       if (s.overdue.includes(i)) continue;
       if (s.scheduled.some((o) => o.n === i)) continue;
@@ -96,16 +98,37 @@ export function batchCut(state, n) {
   });
 }
 
+// 亮燈於灰色（未下訂）球：把該號碼與之前的所有號碼一次改為剪完（含未下訂者），
+// 但過號的球保留過號，亮燈中的球也保留。
+export function cutThrough(state, n) {
+  if (n < 1 || n > TOTAL) return state;
+  return apply(state, (s) => {
+    for (let i = 1; i <= n; i++) {
+      if (i === s.current) continue;
+      if (s.overdue.includes(i)) continue;
+      const gi = s.grayOut.indexOf(i);
+      if (gi >= 0) s.grayOut.splice(gi, 1);
+      s.scheduled = s.scheduled.filter((o) => o.n !== i);
+      cutPush(s, i);
+    }
+    if (n > s.maxOrdered) s.maxOrdered = n;
+  });
+}
+
+// 過號切換：任何狀態的球都可執行（已剪者會改回過號、亮燈中者會退出亮燈）
 export function toggleOverdue(state, n) {
-  const st = ballStatus(state, n);
-  if (st === "gray" || st === "cut" || st === "orange") return state;
+  if (n < 1 || n > TOTAL) return state;
   return apply(state, (s) => {
     const i = s.overdue.indexOf(n);
-    if (i >= 0) s.overdue.splice(i, 1);
-    else {
-      s.overdue.push(n);
-      s.overdue.sort((a, b) => a - b);
+    if (i >= 0) {
+      s.overdue.splice(i, 1);
+      return;
     }
+    s.overdue.push(n);
+    s.overdue.sort((a, b) => a - b);
+    const ci = s.cut.indexOf(n);
+    if (ci >= 0) s.cut.splice(ci, 1);
+    if (s.current === n) s.current = null;
   });
 }
 
@@ -227,10 +250,9 @@ export function resetDay(state) {
   });
 }
 
+// 預定時間：任何狀態的球都可設定（灰色／已剪／亮燈中皆可，時間以小字顯示在球下方）
 export function setScheduled(state, n, hhmm) {
   if (n < 1 || n > TOTAL || !/^\d{2}:\d{2}$/.test(hhmm)) return state;
-  const st = ballStatus(state, n);
-  if (st === "gray" || st === "cut" || st === "orange") return state;
   return apply(state, (s) => {
     s.scheduled = s.scheduled.filter((o) => o.n !== n);
     s.scheduled.push({ n, time: hhmm });
@@ -250,11 +272,12 @@ export function cutBall(state, n) {
   });
 }
 
+// 未下訂（還原為灰）：任何狀態的球都可執行（亮燈中的球會一併退出亮燈）
 export function revertToGray(state, n) {
   if (n < 1 || n > TOTAL) return state;
-  const st = ballStatus(state, n);
-  if (st === "gray" || st === "orange") return state;
+  if (ballStatus(state, n) === "gray") return state; // 已是灰色：no-op
   return apply(state, (s) => {
+    if (s.current === n) s.current = null;
     s.overdue = s.overdue.filter((x) => x !== n);
     s.scheduled = s.scheduled.filter((o) => o.n !== n);
     const ci = s.cut.indexOf(n);
