@@ -2,7 +2,7 @@ import {
   createState, todayStr, rollover, ballStatus,
   queuePositions, estimate, formatAccum, pruneDaily,
   orderUpTo, setCurrent, batchCut, toggleOverdue, cutOverdue,
-  setMinutes, setBaseTime, undo, resetAll,
+  setMinutes, setScheduled, cutBall, revertToGray, undo, resetAll,
 } from "./core.js";
 
 const TOTAL = 150;
@@ -85,6 +85,7 @@ function renderAll() {
     const el = balls[i];
     const st = ballStatus(state, n);
     el.dataset.st = st;
+    el.dataset.sched = state.scheduled.some((o) => o.n === n) ? "1" : "";
     const accumEl = el.querySelector(".accum");
     const whenEl = el.querySelector(".when");
     if (seqSet.has(n)) {
@@ -111,11 +112,27 @@ const dlgConfirm = $("dlgConfirm");
 const baseTimeInput = $("baseTimeInput");
 const recordList = $("recordList");
 
-let overdueMode = false;
+const btnLight = $("btnLight");
+const btnSchedule = $("btnSchedule");
+const btnUnorder = $("btnUnorder");
+const btnCut = $("btnCut");
+
+let activeMode = null; // "light" | "schedule" | "cut" | "unorder" | "overdue" | null
+const MODE_BTNS = {
+  light: btnLight,
+  schedule: btnSchedule,
+  cut: btnCut,
+  unorder: btnUnorder,
+  overdue: overdueModeBtn,
+};
+const pendingSchedule = { n: null };
+
 let gestureStart = null;
 
 function refreshTop() {
-  overdueModeBtn.classList.toggle("active", overdueMode);
+  for (const [mode, btn] of Object.entries(MODE_BTNS)) {
+    btn.classList.toggle("active", activeMode === mode);
+  }
   minutesInput.value = state.minutes;
 }
 
@@ -128,19 +145,31 @@ function commit(next) {
 
 // --- 球上手勢 ---
 function handleBallAction(n, dir) {
-  if (dir === "down") { openTimeDialog(); return; }
+  if (dir === "left") { commit(batchCut(state, n)); return; }
+  if (dir === "right") { commit(orderUpTo(state, n)); return; }
   const st = ballStatus(state, n);
-  if (overdueMode) {
-    if (dir === "tap") { commit(toggleOverdue(state, n)); }
-    else if (dir === "up") { commit(setCurrent(state, n, nowHHMM())); }
-    else commit(dir === "left" ? batchCut(state, n) : orderUpTo(state, n));
-    return;
-  }
-  if (dir === "up") commit(setCurrent(state, n, nowHHMM()));
-  else if (dir === "left") commit(batchCut(state, n));
-  else {
-    if (st === "overdue") commit(cutOverdue(state, n));
-    else commit(orderUpTo(state, n));
+  switch (activeMode) {
+    case "light":
+      commit(setCurrent(state, n, nowHHMM()));
+      break;
+    case "schedule":
+      if (st === "gray" || st === "cut" || st === "orange") break;
+      pendingSchedule.n = n;
+      baseTimeInput.value = nowHHMM();
+      dlgTime.classList.remove("hidden");
+      break;
+    case "cut":
+      commit(cutBall(state, n));
+      break;
+    case "unorder":
+      commit(revertToGray(state, n));
+      break;
+    case "overdue":
+      commit(toggleOverdue(state, n));
+      break;
+    default:
+      if (st === "overdue") commit(cutOverdue(state, n));
+      else commit(orderUpTo(state, n));
   }
 }
 
@@ -154,13 +183,9 @@ grid.addEventListener("pointermove", (e) => {
   if (!gestureStart || e.pointerId !== gestureStart.id) return;
   const dx = e.clientX - gestureStart.x;
   const dy = e.clientY - gestureStart.y;
-  if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
+  if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
     gestureStart.done = true;
-    if (Math.abs(dy) > Math.abs(dx)) {
-      handleBallAction(gestureStart.n, dy < 0 ? "up" : "down");
-    } else {
-      handleBallAction(gestureStart.n, dx > 0 ? "right" : "left");
-    }
+    handleBallAction(gestureStart.n, dx > 0 ? "right" : "left");
   }
 });
 grid.addEventListener("pointerup", (e) => {
@@ -184,10 +209,15 @@ minutesInput.addEventListener("change", () => {
   const m = parseInt(minutesInput.value, 10);
   commit(setMinutes(state, m));
 });
-overdueModeBtn.addEventListener("click", () => {
-  overdueMode = !overdueMode;
+function setMode(mode) {
+  activeMode = activeMode === mode ? null : mode;
   refreshTop();
-});
+}
+btnLight.addEventListener("click", () => setMode("light"));
+btnSchedule.addEventListener("click", () => setMode("schedule"));
+btnCut.addEventListener("click", () => setMode("cut"));
+btnUnorder.addEventListener("click", () => setMode("unorder"));
+overdueModeBtn.addEventListener("click", () => setMode("overdue"));
 btnUndo.addEventListener("click", () => { commit(undo(state)); });
 
 quickBtns.addEventListener("click", (e) => {
@@ -206,16 +236,17 @@ function scrollToBall(n) {
   area.scrollTo({ top, behavior: "smooth" });
 }
 
-// --- 基準時間彈窗 ---
-function openTimeDialog() {
-  baseTimeInput.value = nowHHMM();
-  dlgTime.classList.remove("hidden");
-}
-$("btnTimeCancel").addEventListener("click", () => dlgTime.classList.add("hidden"));
+// --- 預定時間彈窗 ---
+$("btnTimeCancel").addEventListener("click", () => {
+  dlgTime.classList.add("hidden");
+  pendingSchedule.n = null;
+});
 $("btnTimeOk").addEventListener("click", () => {
-  const val = baseTimeInput.value || state.t0;
+  const val = baseTimeInput.value;
+  if (pendingSchedule.n === null) return;
   if (!/^\d{2}:\d{2}$/.test(val)) return;
-  commit(setBaseTime(state, val));
+  commit(setScheduled(state, pendingSchedule.n, val));
+  pendingSchedule.n = null;
   dlgTime.classList.add("hidden");
 });
 
