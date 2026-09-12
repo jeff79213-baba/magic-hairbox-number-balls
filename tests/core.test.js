@@ -34,6 +34,13 @@ describe("orderUpTo", () => {
     state = orderUpTo(state, 151);
     expect(state.maxOrdered).toBe(0);
   });
+  it("重複下訂已達上限：no-op 不推 history", () => {
+    state = orderUpTo(state, 58);
+    const len = state.history.length;
+    state = orderUpTo(state, 58);
+    expect(state.maxOrdered).toBe(58);
+    expect(state.history.length).toBe(len);
+  });
 });
 
 describe("setCurrent", () => {
@@ -67,6 +74,15 @@ describe("setCurrent", () => {
     const before = state.current;
     state = setCurrent(state, 5, "16:00");
     expect(state.current).toBe(before);
+  });
+  it("同球重複叫號：no-op，不重錨 t0、不加 history", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 18, "15:00");
+    expect(state.t0).toBe("15:00");
+    const len = state.history.length;
+    state = setCurrent(state, 18, "16:00");
+    expect(state.t0).toBe("15:00");
+    expect(state.history.length).toBe(len);
   });
 });
 
