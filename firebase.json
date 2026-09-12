@@ -1,0 +1,17 @@
+{
+  "hosting": {
+    "site": "mhb-sk",
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      ".firebaserc",
+      "**/node_modules/**",
+      "docs/**",
+      "tests/**",
+      "package.json",
+      "package-lock.json",
+      ".gitignore",
+      "網址.txt"
+    ]
+  }
+}

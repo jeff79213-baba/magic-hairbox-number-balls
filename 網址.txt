@@ -1,0 +1,3 @@
+GitHub      : (待 repo 建立後填寫)
+GitHub Pages: (待 Pages 啟用後填寫)
+Firebase    : https://mhb-sk.web.app
