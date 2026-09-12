@@ -4,7 +4,7 @@ import {
   toggleOverdue, cutOverdue, setMinutes, ballStatus, undo, todayStr,
   queuePositions, estimate, formatAccum,
   recordDaily, pruneDaily, rollover, resetDay,
-  resetAll,
+  resetAll, setScheduled, cutBall, revertToGray,
 } from "../src/core.js";
 
 let state;
@@ -396,5 +396,131 @@ describe("rollover / resetDay / resetAll 清空新欄位", () => {
     const s = resetAll(state);
     expect(s.scheduled).toEqual([]);
     expect(s.grayOut).toEqual([]);
+  });
+});
+
+describe("setScheduled", () => {
+  it("設定成功：球維持 blue，scheduled 記錄時間", () => {
+    state = orderUpTo(state, 30);
+    state = setScheduled(state, 19, "14:30");
+    expect(state.scheduled).toEqual([{ n: 19, time: "14:30" }]);
+    expect(ballStatus(state, 19)).toBe("blue");
+  });
+  it("overdue 球可設預定時間", () => {
+    state = orderUpTo(state, 30);
+    state = toggleOverdue(state, 10);
+    state = setScheduled(state, 10, "13:00");
+    expect(state.scheduled.some((o) => o.n === 10)).toBe(true);
+  });
+  it("同球覆寫：只留最新一筆", () => {
+    state = orderUpTo(state, 30);
+    state = setScheduled(state, 19, "14:30");
+    state = setScheduled(state, 19, "15:00");
+    expect(state.scheduled).toEqual([{ n: 19, time: "15:00" }]);
+    expect(ballStatus(state, 19)).toBe("blue");
+  });
+  it("非法時間格式：no-op", () => {
+    state = orderUpTo(state, 30);
+    state = setScheduled(state, 19, "abc");
+    expect(state.scheduled).toEqual([]);
+    expect(state.history.length).toBe(1);
+  });
+  it("gray / grayOut / cut / current 不可設", () => {
+    state = orderUpTo(state, 30);
+    state = setScheduled(state, 60, "14:00");
+    expect(state.scheduled).toEqual([]);
+    state.grayOut = [25];
+    state = setScheduled(state, 25, "14:00");
+    expect(state.scheduled).toEqual([]);
+    state = setCurrent(state, 5, "15:00");
+    state = setScheduled(state, 5, "15:00");
+    expect(state.scheduled).toEqual([]);
+    state = setCurrent(state, 6, "16:00");
+    state = setScheduled(state, 5, "15:00");
+    expect(state.scheduled).toEqual([]);
+  });
+});
+
+describe("cutBall", () => {
+  it("剪灰色（未下訂）的球", () => {
+    state = cutBall(state, 70);
+    expect(ballStatus(state, 70)).toBe("cut");
+  });
+  it("剪藍色球", () => {
+    state = orderUpTo(state, 30);
+    state = cutBall(state, 20);
+    expect(ballStatus(state, 20)).toBe("cut");
+  });
+  it("剪過號球：移出 overdue", () => {
+    state = orderUpTo(state, 30);
+    state = toggleOverdue(state, 10);
+    state = cutBall(state, 10);
+    expect(ballStatus(state, 10)).toBe("cut");
+    expect(state.overdue).not.toContain(10);
+  });
+  it("剪有預定時間的球：移出 scheduled", () => {
+    state = orderUpTo(state, 30);
+    state = setScheduled(state, 15, "14:00");
+    state = cutBall(state, 15);
+    expect(state.scheduled).toEqual([]);
+    expect(ballStatus(state, 15)).toBe("cut");
+  });
+  it("剪亮燈中的球：清除 current", () => {
+    state = orderUpTo(state, 30);
+    state = setCurrent(state, 8, "15:00");
+    state = cutBall(state, 8);
+    expect(state.current).toBeNull();
+    expect(ballStatus(state, 8)).toBe("cut");
+  });
+  it("已是 cut：no-op 不重複推 history", () => {
+    state = orderUpTo(state, 30);
+    state = cutBall(state, 5);
+    const len = state.history.length;
+    state = cutBall(state, 5);
+    expect(state.history.length).toBe(len);
+  });
+});
+
+describe("revertToGray", () => {
+  it("藍色球還原成灰", () => {
+    state = orderUpTo(state, 30);
+    state = revertToGray(state, 20);
+    expect(ballStatus(state, 20)).toBe("gray");
+    expect(state.grayOut).toContain(20);
+  });
+  it("已剪球還原成灰：移出 cut", () => {
+    state = orderUpTo(state, 30);
+    state = cutBall(state, 20);
+    state = revertToGray(state, 20);
+    expect(ballStatus(state, 20)).toBe("gray");
+    expect(state.cut).not.toContain(20);
+    expect(state.grayOut).toContain(20);
+  });
+  it("過號球還原成灰：移出 overdue", () => {
+    state = orderUpTo(state, 30);
+    state = toggleOverdue(state, 10);
+    state = revertToGray(state, 10);
+    expect(ballStatus(state, 10)).toBe("gray");
+    expect(state.overdue).not.toContain(10);
+  });
+  it("有預定時間的球還原成灰：移出 scheduled", () => {
+    state = orderUpTo(state, 30);
+    state = setScheduled(state, 15, "14:00");
+    state = revertToGray(state, 15);
+    expect(ballStatus(state, 15)).toBe("gray");
+    expect(state.scheduled).toEqual([]);
+  });
+  it("亮燈中的球不可還原（no-op）", () => {
+    state = orderUpTo(state, 30);
+    state = setCurrent(state, 8, "15:00");
+    state = revertToGray(state, 8);
+    expect(ballStatus(state, 8)).toBe("orange");
+    expect(state.grayOut).toEqual([]);
+  });
+  it("已是灰色：no-op 不推 history", () => {
+    state = orderUpTo(state, 30);
+    state = revertToGray(state, 60);
+    expect(state.grayOut).toEqual([]);
+    expect(state.history.length).toBe(1);
   });
 });

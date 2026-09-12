@@ -226,3 +226,40 @@ export function resetDay(state) {
     s.date = todayStr();
   });
 }
+
+export function setScheduled(state, n, hhmm) {
+  if (n < 1 || n > TOTAL || !/^\d{2}:\d{2}$/.test(hhmm)) return state;
+  const st = ballStatus(state, n);
+  if (st === "gray" || st === "cut" || st === "orange") return state;
+  return apply(state, (s) => {
+    s.scheduled = s.scheduled.filter((o) => o.n !== n);
+    s.scheduled.push({ n, time: hhmm });
+    s.scheduled.sort((a, b) => a.n - b.n);
+  });
+}
+
+export function cutBall(state, n) {
+  if (n < 1 || n > TOTAL) return state;
+  return apply(state, (s) => {
+    if (s.current === n) s.current = null;
+    s.overdue = s.overdue.filter((x) => x !== n);
+    s.scheduled = s.scheduled.filter((o) => o.n !== n);
+    const gi = s.grayOut.indexOf(n);
+    if (gi >= 0) s.grayOut.splice(gi, 1);
+    cutPush(s, n);
+  });
+}
+
+export function revertToGray(state, n) {
+  if (n < 1 || n > TOTAL) return state;
+  const st = ballStatus(state, n);
+  if (st === "gray" || st === "orange") return state;
+  return apply(state, (s) => {
+    s.overdue = s.overdue.filter((x) => x !== n);
+    s.scheduled = s.scheduled.filter((o) => o.n !== n);
+    const ci = s.cut.indexOf(n);
+    if (ci >= 0) s.cut.splice(ci, 1);
+    if (!s.grayOut.includes(n)) s.grayOut.push(n);
+    s.grayOut.sort((a, b) => a - b);
+  });
+}
