@@ -1,6 +1,8 @@
 import {
   createState, todayStr, rollover, ballStatus,
   queuePositions, estimate, formatAccum, pruneDaily,
+  orderUpTo, setCurrent, batchCut, toggleOverdue, cutOverdue,
+  setMinutes, setBaseTime, undo, resetAll,
 } from "./core.js";
 
 const TOTAL = 150;
@@ -85,6 +87,176 @@ function renderAll() {
     void idxMap;
   }
 }
+
+const overdueModeBtn = $("overdueMode");
+const minutesInput = $("minutesInput");
+const quickBtns = $("quickBtns");
+const btnRecords = $("btnRecords");
+const btnReset = $("btnReset");
+const btnUndo = $("btnUndo");
+const btnFullscreen = $("btnFullscreen");
+const dlgTime = $("dlgTime");
+const dlgRecords = $("dlgRecords");
+const dlgConfirm = $("dlgConfirm");
+const baseTimeInput = $("baseTimeInput");
+const recordList = $("recordList");
+
+let overdueMode = false;
+let gestureStart = null;
+
+function refreshTop() {
+  overdueModeBtn.classList.toggle("active", overdueMode);
+  const valid = `${parseInt(minutesInput.value, 10) || 15}`;
+  minutesInput.value = valid;
+}
+
+function commit(next) {
+  if (next) state = next;
+  saveState(state);
+  renderAll();
+  refreshTop();
+}
+
+// --- 球上手勢 ---
+function handleBallAction(n, dir) {
+  if (dir === "down") { openTimeDialog(); return; }
+  const st = ballStatus(state, n);
+  if (overdueMode) {
+    if (dir === "tap") { commit(toggleOverdue(state, n)); }
+    else if (dir === "up") { commit(setCurrent(state, n, nowHHMM())); }
+    else commit(dir === "left" ? batchCut(state, n) : orderUpTo(state, n));
+    return;
+  }
+  if (dir === "up") commit(setCurrent(state, n, nowHHMM()));
+  else if (dir === "left") commit(batchCut(state, n));
+  else {
+    if (st === "overdue") commit(cutOverdue(state, n));
+    else commit(orderUpTo(state, n));
+  }
+}
+
+grid.addEventListener("pointerdown", (e) => {
+  const ball = e.target.closest(".ball");
+  if (!ball) return;
+  gestureStart = { x: e.clientX, y: e.clientY, n: +ball.dataset.n, id: e.pointerId };
+  e.currentTarget.setPointerCapture?.(e.pointerId);
+});
+grid.addEventListener("pointermove", (e) => {
+  if (!gestureStart || e.pointerId !== gestureStart.id) return;
+  const dx = e.clientX - gestureStart.x;
+  const dy = e.clientY - gestureStart.y;
+  if (Math.abs(dx) > 40 || Math.abs(dy) > 40) {
+    gestureStart.done = true;
+    if (Math.abs(dy) > Math.abs(dx)) {
+      handleBallAction(gestureStart.n, dy < 0 ? "up" : "down");
+    } else {
+      handleBallAction(gestureStart.n, dx > 0 ? "right" : "left");
+    }
+  }
+});
+grid.addEventListener("pointerup", (e) => {
+  if (!gestureStart || e.pointerId !== gestureStart.id) return;
+  const g = gestureStart;
+  gestureStart = null;
+  if (g.done) return;
+  const dx = e.clientX - g.x;
+  const dy = e.clientY - g.y;
+  if (Math.hypot(dx, dy) < 28) handleBallAction(g.n, "tap");
+});
+grid.addEventListener("pointercancel", () => { gestureStart = null; });
+grid.addEventListener("dblclick", (e) => e.preventDefault());
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("touchmove", (e) => {
+  if (e.target.closest && e.target.closest(".ball")) e.preventDefault();
+}, { passive: false });
+
+// --- 控制列 ---
+minutesInput.addEventListener("change", () => {
+  const m = parseInt(minutesInput.value, 10);
+  commit(setMinutes(state, m));
+});
+overdueModeBtn.addEventListener("click", () => {
+  overdueMode = !overdueMode;
+  refreshTop();
+});
+btnUndo.addEventListener("click", () => { commit(undo(state)); });
+
+quickBtns.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-n]");
+  if (!btn) return;
+  const n = +btn.dataset.n;
+  scrollToBall(n);
+});
+
+function scrollToBall(n) {
+  const idx = n - 1;
+  const el = balls[idx];
+  if (!el) return;
+  const area = $("gridArea");
+  const diff = el.offsetTop - area.offsetTop - 8;
+  area.scrollTo({ top: diff, behavior: "smooth" });
+}
+
+// --- 基準時間彈窗 ---
+function openTimeDialog() {
+  baseTimeInput.value = nowHHMM();
+  dlgTime.classList.remove("hidden");
+}
+$("btnTimeCancel").addEventListener("click", () => dlgTime.classList.add("hidden"));
+$("btnTimeOk").addEventListener("click", () => {
+  commit(setBaseTime(state, baseTimeInput.value || state.t0));
+  dlgTime.classList.add("hidden");
+});
+
+// --- 每日紀錄 ---
+btnRecords.addEventListener("click", () => {
+  recordList.replaceChildren();
+  const keys = Object.keys(daily).sort().reverse();
+  if (!keys.length) {
+    const li = document.createElement("li");
+    li.textContent = "尚無紀錄";
+    recordList.appendChild(li);
+  } else {
+    for (const k of keys) {
+      const li = document.createElement("li");
+      const d = document.createElement("span");
+      d.textContent = k;
+      const c = document.createElement("span");
+      c.textContent = `${daily[k]} 顆`;
+      li.append(d, c);
+      recordList.appendChild(li);
+    }
+  }
+  dlgRecords.classList.remove("hidden");
+});
+$("btnRecordsClose").addEventListener("click", () => dlgRecords.classList.add("hidden"));
+
+// --- 每日重置（寫入當日紀錄後歸零）---
+btnReset.addEventListener("click", () => dlgConfirm.classList.remove("hidden"));
+$("btnConfirmNo").addEventListener("click", () => dlgConfirm.classList.add("hidden"));
+$("btnConfirmYes").addEventListener("click", () => {
+  if (state.maxOrdered > 0 && state.date === todayStr()) {
+    daily[state.date] = state.maxOrdered;
+  }
+  pruneDaily(daily, todayStr());
+  saveDaily(daily);
+  commit(resetAll(state));
+  dlgConfirm.classList.add("hidden");
+});
+
+// --- 全螢幕 ---
+if (document.documentElement.requestFullscreen && document.fullscreenEnabled !== false) {
+  btnFullscreen.addEventListener("click", async () => {
+    try {
+      if (!document.fullscreenElement) await document.documentElement.requestFullscreen();
+      else await document.exitFullscreen();
+    } catch (err) { /* 忽略 */ }
+  });
+} else {
+  btnFullscreen.classList.add("hidden");
+}
+
+refreshTop();
 
 function updateClock() {
   const d = new Date();

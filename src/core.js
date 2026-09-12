@@ -114,6 +114,20 @@ export function setMinutes(state, m) {
   });
 }
 
+export function setBaseTime(state, hhmm) {
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) return state;
+  return apply(state, (s) => { s.t0 = hhmm; });
+}
+
+export function resetAll(state) {
+  return apply(state, (s) => {
+    s.maxOrdered = 0;
+    s.current = null;
+    s.overdue = [];
+    s.cut = [];
+  });
+}
+
 export function queuePositions(state) {
   const seq = [];
   for (let i = 1; i <= state.maxOrdered; i++) {

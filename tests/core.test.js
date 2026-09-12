@@ -4,6 +4,7 @@ import {
   toggleOverdue, cutOverdue, setMinutes, ballStatus, undo, todayStr,
   queuePositions, estimate, formatAccum,
   recordDaily, pruneDaily, rollover, resetDay,
+  setBaseTime, resetAll,
 } from "../src/core.js";
 
 let state;
@@ -262,5 +263,23 @@ describe("daily records", () => {
     expect(s.cut).toEqual([]);
     expect(s.minutes).toBe(15);
     expect(s.history.length).toBeGreaterThan(0); // 有動作可 undo
+  });
+});
+
+describe("setBaseTime / resetAll", () => {
+  it("setBaseTime 設 t0 且可還原", () => {
+    state = setBaseTime(state, "11:30");
+    expect(state.t0).toBe("11:30");
+    expect(state.history.length).toBeGreaterThan(0);
+  });
+  it("resetAll 全歸零但保留 minutes 與 t0", () => {
+    state = orderUpTo(state, 58);
+    state = setMinutes(state, 20);
+    state = setBaseTime(state, "10:00");
+    const s = resetAll(state);
+    expect(s.maxOrdered).toBe(0);
+    expect(s.minutes).toBe(20);
+    expect(s.t0).toBe("10:00");
+    expect(ballStatus(s, 58)).toBe("gray");
   });
 });
