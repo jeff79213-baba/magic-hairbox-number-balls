@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<title>魔法箱人數球</title>
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+<header id="topbar">
+  <div class="top-row">
+    <h1>魔法箱人數球</h1>
+    <div id="clock" class="clock">--:--</div>
+  </div>
+
+  <div class="top-row" id="quickRow">
+    <span class="row-label">快捷跳號</span>
+    <div id="quickBtns">
+      <button type="button" data-n="20">20</button>
+      <button type="button" data-n="40">40</button>
+      <button type="button" data-n="60">60</button>
+      <button type="button" data-n="80">80</button>
+      <button type="button" data-n="100">100</button>
+      <button type="button" data-n="120">120</button>
+      <button type="button" data-n="140">140</button>
+    </div>
+  </div>
+
+  <div class="top-row" id="colorRow">
+    <span class="row-label">顏色</span>
+    <span class="legend"><i class="sw gray"></i>未下訂</span>
+    <span class="legend"><i class="sw blue"></i>已下訂</span>
+    <span class="legend"><i class="sw orange"></i>當前叫號</span>
+    <span class="legend"><i class="sw red"></i>已剪</span>
+    <span class="legend"><i class="sw ring"></i>過號</span>
+  </div>
+
+  <div class="top-row" id="gestureLegend">
+    <span class="row-label">手勢</span>
+    <span class="gest">↑ 叫號</span>
+    <span class="gest">↓ 基準時間</span>
+    <span class="gest">← 批量剪完</span>
+    <span class="gest">→ 下訂</span>
+  </div>
+
+  <div class="top-row" id="controlRow">
+    <label class="ctrl">每球<input id="minutesInput" type="number" min="1" max="240" value="15" inputmode="numeric">分</label>
+    <button type="button" id="overdueMode" class="ctrl-mode">過號</button>
+    <button type="button" id="btnRecords">每日紀錄</button>
+    <button type="button" id="btnReset" class="danger">每日重置</button>
+    <button type="button" id="btnUndo">還原</button>
+    <button type="button" id="btnFullscreen">全螢幕</button>
+  </div>
+</header>
+
+<main id="gridArea">
+  <div id="grid" aria-label="人數球"></div>
+</main>
+
+<div id="dlgTime" class="modal hidden">
+  <div class="panel">
+    <h2>基準時間</h2>
+    <p class="hint">設定時間錨點，整條時間表據此重新計算。</p>
+    <input id="baseTimeInput" type="time">
+    <div class="actions">
+      <button type="button" id="btnTimeCancel">取消</button>
+      <button type="button" id="btnTimeOk">套用</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgRecords" class="modal hidden">
+  <div class="panel">
+    <h2>每日紀錄（最近 90 天）</h2>
+    <ul id="recordList"></ul>
+    <div class="actions">
+      <button type="button" id="btnRecordsClose">關閉</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgConfirm" class="modal hidden">
+  <div class="panel">
+    <h2>每日重置</h2>
+    <p>確認要全部歸零、開始新的一天？</p>
+    <div class="actions">
+      <button type="button" id="btnConfirmNo">取消</button>
+      <button type="button" id="btnConfirmYes" class="danger">確認重置</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="src/main.js"></script>
+</body>
+</html>
