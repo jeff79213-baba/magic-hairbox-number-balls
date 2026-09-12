@@ -153,3 +153,48 @@ export function estimate(state, n) {
   const accumMin = (pos + 1) * state.minutes;
   return { accumMin, time: fmtTime(minOfDay(state.t0) + accumMin) };
 }
+
+export function recordDaily(daily, date, maxOrdered) {
+  if (maxOrdered > 0) daily[date] = maxOrdered;
+}
+
+export function pruneDaily(daily, today) {
+  const d = new Date(today + "T00:00:00");
+  d.setDate(d.getDate() - 90);
+  const cutoff = todayStr(d);
+  for (const k of Object.keys(daily)) {
+    if (k <= cutoff) delete daily[k];
+  }
+}
+
+export function rollover(state, today) {
+  const daily = {};
+  if (state.date !== today) {
+    recordDaily(daily, state.date, state.maxOrdered);
+    const base = clone(state);
+    delete base.history;
+    return {
+      daily,
+      state: {
+        ...base,
+        maxOrdered: 0,
+        current: null,
+        overdue: [],
+        cut: [],
+        date: today,
+        history: [],
+      },
+    };
+  }
+  return { daily, state };
+}
+
+export function resetDay(state) {
+  return apply(state, (s) => {
+    s.maxOrdered = 0;
+    s.current = null;
+    s.overdue = [];
+    s.cut = [];
+    s.date = todayStr();
+  });
+}

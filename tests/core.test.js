@@ -3,6 +3,7 @@ import {
   TOTAL, createState, orderUpTo, setCurrent, batchCut,
   toggleOverdue, cutOverdue, setMinutes, ballStatus, undo, todayStr,
   queuePositions, estimate, formatAccum,
+  recordDaily, pruneDaily, rollover, resetDay,
 } from "../src/core.js";
 
 let state;
@@ -210,4 +211,56 @@ describe("formatAccum", () => {
   it("未滿 60 分：45 分", () => expect(formatAccum(45)).toBe("45分"));
   it("剛好一小時：1 小時", () => expect(formatAccum(60)).toBe("1小時"));
   it("跨小時：3 小時 15 分", () => expect(formatAccum(195)).toBe("3小時15分"));
+});
+
+describe("daily records", () => {
+  it("recordDaily 只記錄 >0", () => {
+    const daily = {};
+    recordDaily(daily, "2026-09-11", 0);
+    expect(daily).toEqual({});
+    recordDaily(daily, "2026-09-11", 58);
+    expect(daily["2026-09-11"]).toBe(58);
+  });
+
+  it("pruneDaily 保留 90 天以內的資料", () => {
+    const today = "2026-09-12";
+    const daily = {
+      "2026-06-14": 1, // 90 天前，清除
+      "2026-06-15": 2, // 90 天內，保留
+      "2026-09-12": 58,
+    };
+    pruneDaily(daily, today);
+    expect(daily["2026-06-14"]).toBeUndefined();
+    expect(daily["2026-06-15"]).toBe(2);
+  });
+
+  it("rollover 同日：直接回傳原狀態", () => {
+    state = orderUpTo(state, 58);
+    const r = rollover(state, todayStr());
+    expect(r.state.maxOrdered).toBe(58);
+    expect(r.daily).toEqual({});
+  });
+
+  it("rollover 跨日：記錄昨日並回傳清空的新狀態", () => {
+    state = orderUpTo(state, 58);
+    state.date = "2026-09-11";
+    const r = rollover(state, "2026-09-12");
+    expect(r.daily["2026-09-11"]).toBe(58);
+    expect(r.state.maxOrdered).toBe(0);
+    expect(r.state.date).toBe("2026-09-12");
+    expect(r.state.history).toEqual([]);
+  });
+
+  it("resetDay 換日：清空計數但保留設定與歷史", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 18, "15:00");
+    state = toggleOverdue(state, 10);
+    const s = resetDay(state);
+    expect(s.maxOrdered).toBe(0);
+    expect(s.current).toBeNull();
+    expect(s.overdue).toEqual([]);
+    expect(s.cut).toEqual([]);
+    expect(s.minutes).toBe(15);
+    expect(s.history.length).toBeGreaterThan(0); // 有動作可 undo
+  });
 });
