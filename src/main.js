@@ -1,7 +1,7 @@
 import {
   createState, todayStr, rollover, ballStatus,
   queuePositions, estimate, formatAccum, pruneDaily,
-  orderUpTo, setCurrent, batchCut, cutThrough, toggleOverdue, cutOverdue,
+  orderUpTo, batchCut, lightUp, toggleOverdue, cutOverdue,
   setMinutes, setScheduled, cutBall, revertToGray, undo, resetAll,
 } from "./core.js";
 
@@ -178,9 +178,8 @@ function handleBallAction(n, dir) {
   const st = ballStatus(state, n);
   switch (activeMode) {
     case "light":
-      // 灰色（未下訂）球：該號碼與之前的一次剪完（過號保留）
-      if (st === "gray") commit(cutThrough(state, n));
-      else commit(setCurrent(state, n, nowHHMM()));
+      // 不限球色：之前的號碼一併剪完（過號保留），按的那顆亮燈（不會被剪）
+      commit(lightUp(state, n, nowHHMM()));
       break;
     case "schedule":
       pendingSchedule.n = n;

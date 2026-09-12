@@ -68,18 +68,22 @@ export function orderUpTo(state, n) {
   });
 }
 
+// 亮燈的共用 mutation（setCurrent 與 lightUp 都用）：原亮燈球剪完、n 設為亮燈中
+function lightMutate(s, n, nowHHMM) {
+  if (s.current !== null && s.current !== n) cutPush(s, s.current);
+  s.current = n;
+  const oi = s.overdue.indexOf(n);
+  if (oi >= 0) s.overdue.splice(oi, 1);
+  if (n > s.maxOrdered) s.maxOrdered = n;
+  if (nowHHMM) s.t0 = nowHHMM;
+}
+
 export function setCurrent(state, n, nowHHMM = null) {
+  if (n < 1 || n > TOTAL) return state;
   const st = ballStatus(state, n);
   if (st === "gray" || st === "cut") return state;
   if (state.current === n) return state; // 已叫號的目前球：no-op，不重錨 t0、不推 history
-  return apply(state, (s) => {
-    if (s.current !== null && s.current !== n) cutPush(s, s.current);
-    s.current = n;
-    const oi = s.overdue.indexOf(n);
-    if (oi >= 0) s.overdue.splice(oi, 1);
-    if (n > s.maxOrdered) s.maxOrdered = n;
-    if (nowHHMM) s.t0 = nowHHMM;
-  });
+  return apply(state, (s) => lightMutate(s, n, nowHHMM));
 }
 
 // 批量剪完：含點擊／滑動的那顆號碼本身（1..n），跳過亮燈中、過號、有預定時間與未下訂的球
@@ -98,20 +102,44 @@ export function batchCut(state, n) {
   });
 }
 
+// from..to 逐球標為已剪：跳過過號（保留過號）、清掉 grayOut（未下訂）與預定時間。
+// keepCurrent 為 true 時連亮燈中的球也保留（cutThrough 用）。
+function cutSweep(s, from, to, keepCurrent) {
+  for (let i = from; i <= to; i++) {
+    if (keepCurrent && i === s.current) continue;
+    if (s.overdue.includes(i)) continue;
+    const gi = s.grayOut.indexOf(i);
+    if (gi >= 0) s.grayOut.splice(gi, 1);
+    s.scheduled = s.scheduled.filter((o) => o.n !== i);
+    cutPush(s, i);
+  }
+}
+
 // 亮燈於灰色（未下訂）球：把該號碼與之前的所有號碼一次改為剪完（含未下訂者），
 // 但過號的球保留過號，亮燈中的球也保留。
+// 註：亮燈模式已統一走 lightUp（任何球色都改成「前段剪完＋該球亮燈」），
+// 此函式目前沒有 UI 入口，保留供日後需要「只剪穿、不亮燈」時使用。
 export function cutThrough(state, n) {
   if (n < 1 || n > TOTAL) return state;
   return apply(state, (s) => {
-    for (let i = 1; i <= n; i++) {
-      if (i === s.current) continue;
-      if (s.overdue.includes(i)) continue;
-      const gi = s.grayOut.indexOf(i);
-      if (gi >= 0) s.grayOut.splice(gi, 1);
-      s.scheduled = s.scheduled.filter((o) => o.n !== i);
-      cutPush(s, i);
-    }
+    cutSweep(s, 1, n, true);
     if (n > s.maxOrdered) s.maxOrdered = n;
+  });
+}
+
+// 亮燈：代表「之前的都剪完了，這顆就是要剪的下一號」。
+// 不限球色（灰／藍／過號皆可），一律先把該號碼之前的球全部剪完（過號保留），
+// 再把該號碼設為亮燈中 —— 按的那顆不會被剪。原亮燈球比照 setCurrent 規則一併剪完。
+// 已剪（已經剪過）與已亮燈（同一顆重按）皆 no-op，後者可避免重錨 t0。
+export function lightUp(state, n, nowHHMM = null) {
+  if (n < 1 || n > TOTAL) return state;
+  const st = ballStatus(state, n);
+  if (st === "cut" || st === "orange") return state;
+  return apply(state, (s) => {
+    cutSweep(s, 1, n - 1, false);
+    const gi = s.grayOut.indexOf(n);
+    if (gi >= 0) s.grayOut.splice(gi, 1); // 要剪的號碼不再算「未下訂」
+    lightMutate(s, n, nowHHMM);
   });
 }
 

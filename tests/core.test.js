@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  TOTAL, createState, orderUpTo, setCurrent, batchCut, cutThrough,
+  TOTAL, createState, orderUpTo, setCurrent, batchCut, cutThrough, lightUp,
   toggleOverdue, cutOverdue, setMinutes, ballStatus, undo, todayStr,
   queuePositions, estimate, formatAccum,
   recordDaily, pruneDaily, rollover, resetDay,
@@ -150,6 +150,100 @@ describe("cutThrough", () => {
     expect(state.cut).toEqual([]);
     state = cutThrough(state, 151);
     expect(state.cut).toEqual([]);
+  });
+});
+
+describe("lightUp", () => {
+  it("藍球亮燈：之前的號碼全部變 cut，本球亮燈", () => {
+    state = orderUpTo(state, 30);
+    state = lightUp(state, 20, "15:00");
+    expect(ballStatus(state, 20)).toBe("orange");
+    expect(ballStatus(state, 19)).toBe("cut");
+    expect(ballStatus(state, 1)).toBe("cut");
+    expect(ballStatus(state, 21)).toBe("blue");
+    expect(state.current).toBe(20);
+    expect(state.maxOrdered).toBe(30);
+    expect(state.t0).toBe("15:00");
+  });
+  it("過號保留過號，其餘照剪", () => {
+    state = orderUpTo(state, 30);
+    state = toggleOverdue(state, 10);
+    state = lightUp(state, 20, "15:00");
+    expect(ballStatus(state, 10)).toBe("overdue");
+    expect(ballStatus(state, 9)).toBe("cut");
+    expect(ballStatus(state, 20)).toBe("orange");
+  });
+  it("原亮燈球一併剪完", () => {
+    state = orderUpTo(state, 30);
+    state = setCurrent(state, 5, "15:00");
+    state = lightUp(state, 20, "15:30");
+    expect(ballStatus(state, 5)).toBe("cut");
+    expect(state.current).toBe(20);
+  });
+  it("未下訂（grayOut）與有預定時間的球也一併整理為 cut", () => {
+    state = orderUpTo(state, 30);
+    state.grayOut = [12];
+    state = setScheduled(state, 15, "14:00");
+    state = lightUp(state, 20, "15:00");
+    expect(ballStatus(state, 12)).toBe("cut");
+    expect(state.grayOut).toEqual([]);
+    expect(ballStatus(state, 15)).toBe("cut");
+    expect(state.scheduled).toEqual([]);
+  });
+  it("原亮燈球在目標之後：沿用 setCurrent 規則一併剪完", () => {
+    state = orderUpTo(state, 40);
+    state = setCurrent(state, 30, "15:00");
+    state = lightUp(state, 20, "15:10");
+    expect(ballStatus(state, 30)).toBe("cut");
+    expect(ballStatus(state, 1)).toBe("cut");
+    expect(state.current).toBe(20);
+  });
+  it("灰色（未下訂）球也可亮燈：前段剪完、按的那顆亮燈且不下訂上限不倒退", () => {
+    state = orderUpTo(state, 30);
+    state = lightUp(state, 60, "15:00");
+    expect(ballStatus(state, 60)).toBe("orange");
+    expect(ballStatus(state, 31)).toBe("cut");
+    expect(ballStatus(state, 61)).toBe("gray");
+    expect(state.maxOrdered).toBe(60);
+  });
+  it("未下訂（grayOut）還原過的球也可亮燈：移出 grayOut", () => {
+    state = orderUpTo(state, 30);
+    state = revertToGray(state, 25);
+    expect(ballStatus(state, 25)).toBe("gray");
+    state = lightUp(state, 25, "15:00");
+    expect(ballStatus(state, 25)).toBe("orange");
+    expect(state.grayOut).not.toContain(25);
+  });
+  it("過號球也可亮燈：退出過號、前段剪完", () => {
+    state = orderUpTo(state, 30);
+    state = toggleOverdue(state, 20);
+    state = lightUp(state, 20, "15:00");
+    expect(ballStatus(state, 20)).toBe("orange");
+    expect(state.overdue).not.toContain(20);
+    expect(ballStatus(state, 19)).toBe("cut");
+  });
+  it("已剪的球按亮燈：no-op、不推 history", () => {
+    state = orderUpTo(state, 30);
+    state = cutBall(state, 20);
+    const len = state.history.length;
+    state = lightUp(state, 20, "15:00");
+    expect(ballStatus(state, 20)).toBe("cut");
+    expect(state.current).toBeNull();
+    expect(state.history.length).toBe(len);
+  });
+  it("已亮燈的同一號碼重按 no-op 不推 history", () => {
+    state = orderUpTo(state, 30);
+    state = lightUp(state, 19, "15:00");
+    const len = state.history.length;
+    state = lightUp(state, 19, "15:05");
+    expect(state.history.length).toBe(len);
+    expect(state.t0).toBe("15:00");
+  });
+  it("邊界 0 / 151：直接忽略", () => {
+    state = lightUp(state, 0, "15:00");
+    expect(state.current).toBeNull();
+    state = lightUp(state, 151, "15:00");
+    expect(state.current).toBeNull();
   });
 });
 

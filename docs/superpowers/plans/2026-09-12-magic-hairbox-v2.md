@@ -8,6 +8,16 @@
 
 **Tech Stack:** 原生 HTML/CSS/JS（零外部依賴）；dev 依賴只有 Vitest。
 
+> ### ⚠️ 已被 v2.1 修訂（2026-09-12，commit `229ba21`）
+>
+> 本計畫的程式碼片段已非現行版本，請搭配 [`2026-09-12-magic-hairbox-v2.1.md`](./2026-09-12-magic-hairbox-v2.1.md) 閱讀。主要落差：
+>
+> - **Global Constraints**：「批量剪完跳過…」現在**含操作的那顆球本身**；四模式（預定時間／剪完／未下訂／過號）**不再有狀態限制**；「亮燈中球不可用未下訂還原」已解除。
+> - **Task 1 Step 4**（`batchCut` 用 `i < n`）→ 改為 `i <= n`；並新增 `cutThrough`。
+> - **Task 2 Step 1**（`setScheduled` 限定 blue／overdue、`revertToGray` 對亮燈球 no-op）→ 兩者限制皆已移除。
+> - **Task 3 Step 3**（按鈕「還原」）、**Step 5**（僅預定球的 `.when` 上色）→ 改為「返回」，並補 `.when { visibility: visible; }`。
+> - **Task 4 Step 5**（`[亮燈]` 直接 `setCurrent`；schedule 分支的前端 early-return）→ 灰球分流至 `cutThrough`，schedule 前端限制移除。
+
 ## Global Constraints
 
 - 全部繁體中文介面。
