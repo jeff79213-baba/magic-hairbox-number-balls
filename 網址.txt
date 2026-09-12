@@ -1,3 +1,14 @@
-GitHub      : (待 repo 建立後填寫)
-GitHub Pages: (待 Pages 啟用後填寫)
-Firebase    : https://mhb-sk.web.app
+--- GitHub ---
+https://github.com/jeff79213-baba/magic-hairbox-number-balls
+
+--- GitHub Pages ---
+https://jeff79213-baba.github.io/magic-hairbox-number-balls/
+
+--- Firebase Hosting ---
+https://mhb-sk.web.app
+
+--- 本機預覽 ---
+http://localhost:3000
+
+--- 本地路徑 ---
+C:\Users\TW-10\Documents\firebase雲端資料夾\魔髮箱人數表
