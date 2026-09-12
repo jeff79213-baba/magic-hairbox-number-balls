@@ -32,21 +32,23 @@
     <span class="row-label">顏色</span>
     <span class="legend"><i class="sw gray"></i>未下訂</span>
     <span class="legend"><i class="sw blue"></i>已下訂</span>
-    <span class="legend"><i class="sw orange"></i>當前叫號</span>
+    <span class="legend"><i class="sw orange"></i>亮燈中</span>
     <span class="legend"><i class="sw red"></i>已剪</span>
     <span class="legend"><i class="sw ring"></i>過號</span>
   </div>
 
   <div class="top-row" id="gestureLegend">
-    <span class="row-label">手勢</span>
-    <span class="gest">↑ 叫號</span>
-    <span class="gest">↓ 基準時間</span>
+    <span class="row-label">滑動手勢</span>
     <span class="gest">← 批量剪完</span>
     <span class="gest">→ 下訂</span>
   </div>
 
   <div class="top-row" id="controlRow">
     <label class="ctrl">每球<input id="minutesInput" type="number" min="1" max="240" value="15" inputmode="numeric">分</label>
+    <button type="button" id="btnLight" class="ctrl-mode">亮燈</button>
+    <button type="button" id="btnSchedule" class="ctrl-mode">預定時間</button>
+    <button type="button" id="btnUnorder" class="ctrl-mode">未下訂</button>
+    <button type="button" id="btnCut" class="ctrl-mode">剪完</button>
     <button type="button" id="overdueMode" class="ctrl-mode">過號</button>
     <button type="button" id="btnRecords">每日紀錄</button>
     <button type="button" id="btnReset" class="danger">每日重置</button>
@@ -61,8 +63,8 @@
 
 <div id="dlgTime" class="modal hidden">
   <div class="panel">
-    <h2>基準時間</h2>
-    <p class="hint">設定時間錨點，整條時間表據此重新計算。</p>
+    <h2>預定時間</h2>
+    <p class="hint">輸入此顆號碼球的預約時間，該球時刻改顯示這組時間。</p>
     <input id="baseTimeInput" type="time">
     <div class="actions">
       <button type="button" id="btnTimeCancel">取消</button>

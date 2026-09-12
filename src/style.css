@@ -136,3 +136,4 @@ h1 { margin: 0; font-size: 18px; padding-right: 8px; }
 .panel .actions button.danger { color: var(--cut); border-color: var(--cut); }
 #recordList { max-height: 46vh; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
 #recordList li { display: flex; justify-content: space-between; padding: 6px 2px; border-bottom: 1px dashed #eee; font-size: 14px; }
+.ball[data-sched="1"] .when { color: #7b1fa2; font-weight: 700; }
