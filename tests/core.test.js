@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   TOTAL, createState, orderUpTo, setCurrent, batchCut,
   toggleOverdue, cutOverdue, setMinutes, ballStatus, undo, todayStr,
+  queuePositions, estimate, formatAccum,
 } from "../src/core.js";
 
 let state;
@@ -140,4 +141,73 @@ describe("todayStr", () => {
   it("格式化為 yyyy-mm-dd", () => {
     expect(todayStr(new Date(2026, 8, 12))).toBe("2026-09-12");
   });
+});
+
+describe("queuePositions", () => {
+  it("叫號 18（前面已剪完）、過號 {10,12}、下訂 58 → [18,19,..58,10,12]", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 18, "15:00");
+    state = toggleOverdue(state, 10);
+    state = toggleOverdue(state, 12);
+    state = batchCut(state, 18);
+    const seq = queuePositions(state);
+    expect(seq[0]).toBe(18);
+    expect(seq[1]).toBe(19);
+    expect(seq[seq.length - 1]).toBe(12);
+    expect(seq[seq.length - 3]).toBe(58);
+  });
+  it("沒有 current：overdue 依序排到最後", () => {
+    state = orderUpTo(state, 58);
+    state = toggleOverdue(state, 12);
+    state = toggleOverdue(state, 10);
+    const seq = queuePositions(state);
+    expect(seq.slice(-2)).toEqual([10, 12]);
+  });
+  it("cut 的球不會出現在序列中", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 18, "15:00");
+    state = batchCut(state, 18);
+    const seq = queuePositions(state);
+    expect(seq[0]).toBe(18);
+    expect(seq).not.toContain(17);
+  });
+});
+
+describe("estimate", () => {
+  it("13 顆每人 15 分 = +195 分 = 3 小時 15 分 → 18:15（t0=15:00）", () => {
+    state = orderUpTo(state, 30);
+    state = setCurrent(state, 18, "15:00");
+    state = batchCut(state, 18);
+    const seq = queuePositions(state);
+    expect(seq.length).toBe(13);
+    const last = estimate(state, seq[seq.length - 1]);
+    expect(last.accumMin).toBe(195);
+    expect(last.time).toBe("18:15");
+    const first = estimate(state, seq[0]);
+    expect(first.accumMin).toBe(15);
+    expect(first.time).toBe("15:15");
+  });
+  it("過號排在正常人後面，時間往後累加", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 18, "15:00");
+    state = toggleOverdue(state, 10);
+    state = batchCut(state, 18);
+    const e58 = estimate(state, 58);
+    const e10 = estimate(state, 10);
+    expect(e58.accumMin).toBe((58 - 18 + 1) * 15);
+    expect(e10.accumMin).toBe(e58.accumMin + 15);
+  });
+  it("gray/cut 的球回傳 null", () => {
+    state = orderUpTo(state, 30);
+    state = setCurrent(state, 18, "15:00");
+    state = batchCut(state, 18);
+    expect(estimate(state, 17)).toBeNull();
+    expect(estimate(state, 60)).toBeNull();
+  });
+});
+
+describe("formatAccum", () => {
+  it("未滿 60 分：45 分", () => expect(formatAccum(45)).toBe("45分"));
+  it("剛好一小時：1 小時", () => expect(formatAccum(60)).toBe("1小時"));
+  it("跨小時：3 小時 15 分", () => expect(formatAccum(195)).toBe("3小時15分"));
 });

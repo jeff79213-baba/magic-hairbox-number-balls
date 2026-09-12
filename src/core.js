@@ -113,3 +113,43 @@ export function setMinutes(state, m) {
     s.minutes = v;
   });
 }
+
+export function queuePositions(state) {
+  const seq = [];
+  for (let i = 1; i <= state.maxOrdered; i++) {
+    if (i === state.current) continue;
+    if (state.cut.includes(i)) continue;
+    if (state.overdue.includes(i)) continue;
+    seq.push(i);
+  }
+  const overdue = state.overdue
+    .filter((o) => o <= state.maxOrdered && !state.cut.includes(o))
+    .sort((a, b) => a - b);
+  return state.current !== null ? [state.current, ...seq, ...overdue] : [...seq, ...overdue];
+}
+
+function minOfDay(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function fmtTime(min) {
+  const h = Math.floor(min / 60) % 24;
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+export function formatAccum(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h < 1) return `${m}分`;
+  if (m === 0) return `${h}小時`;
+  return `${h}小時${m}分`;
+}
+
+export function estimate(state, n) {
+  const pos = queuePositions(state).indexOf(n);
+  if (pos === -1) return null;
+  const accumMin = (pos + 1) * state.minutes;
+  return { accumMin, time: fmtTime(minOfDay(state.t0) + accumMin) };
+}
