@@ -13,6 +13,8 @@ export function createState() {
     current: null,
     overdue: [],
     cut: [],
+    scheduled: [],
+    grayOut: [],
     minutes: 15,
     t0: "09:00",
     date: todayStr(),
@@ -51,14 +53,18 @@ export function ballStatus(state, n) {
   if (state.cut.includes(n)) return "cut";
   if (state.current === n) return "orange";
   if (state.overdue.includes(n)) return "overdue";
+  if (state.grayOut.includes(n)) return "gray";
   if (n <= state.maxOrdered) return "blue";
   return "gray";
 }
 
 export function orderUpTo(state, n) {
   if (n < 1 || n > TOTAL) return state;
+  if (state.cut.includes(n)) return state;
   return apply(state, (s) => {
     if (n > s.maxOrdered) s.maxOrdered = n;
+    const gi = s.grayOut.indexOf(n);
+    if (gi >= 0) s.grayOut.splice(gi, 1);
   });
 }
 
@@ -82,6 +88,8 @@ export function batchCut(state, n) {
     for (let i = 1; i < n; i++) {
       if (i === s.current) continue;
       if (s.overdue.includes(i)) continue;
+      if (s.scheduled.some((o) => o.n === i)) continue;
+      if (s.grayOut.includes(i)) continue;
       if (i > s.maxOrdered) continue;
       cutPush(s, i);
     }
@@ -116,17 +124,14 @@ export function setMinutes(state, m) {
   });
 }
 
-export function setBaseTime(state, hhmm) {
-  if (!/^\d{2}:\d{2}$/.test(hhmm)) return state;
-  return apply(state, (s) => { s.t0 = hhmm; });
-}
-
 export function resetAll(state) {
   return apply(state, (s) => {
     s.maxOrdered = 0;
     s.current = null;
     s.overdue = [];
     s.cut = [];
+    s.scheduled = [];
+    s.grayOut = [];
   });
 }
 
@@ -136,10 +141,11 @@ export function queuePositions(state) {
     if (i === state.current) continue;
     if (state.cut.includes(i)) continue;
     if (state.overdue.includes(i)) continue;
+    if (state.grayOut.includes(i)) continue;
     seq.push(i);
   }
   const overdue = state.overdue
-    .filter((o) => o <= state.maxOrdered && !state.cut.includes(o))
+    .filter((o) => o <= state.maxOrdered && !state.cut.includes(o) && !state.grayOut.includes(o))
     .sort((a, b) => a - b);
   return state.current !== null ? [state.current, ...seq, ...overdue] : [...seq, ...overdue];
 }
@@ -167,7 +173,8 @@ export function estimate(state, n) {
   const pos = queuePositions(state).indexOf(n);
   if (pos === -1) return null;
   const accumMin = (pos + 1) * state.minutes;
-  return { accumMin, time: fmtTime(minOfDay(state.t0) + accumMin) };
+  const sched = state.scheduled.find((o) => o.n === n);
+  return { accumMin, time: sched ? sched.time : fmtTime(minOfDay(state.t0) + accumMin) };
 }
 
 export function recordDaily(daily, date, maxOrdered) {
@@ -198,6 +205,8 @@ export function rollover(state, today) {
         current: null,
         overdue: [],
         cut: [],
+        scheduled: [],
+        grayOut: [],
         date: today,
         history: [],
       },
@@ -212,6 +221,8 @@ export function resetDay(state) {
     s.current = null;
     s.overdue = [];
     s.cut = [];
+    s.scheduled = [];
+    s.grayOut = [];
     s.date = todayStr();
   });
 }

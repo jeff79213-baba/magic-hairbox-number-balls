@@ -4,7 +4,7 @@ import {
   toggleOverdue, cutOverdue, setMinutes, ballStatus, undo, todayStr,
   queuePositions, estimate, formatAccum,
   recordDaily, pruneDaily, rollover, resetDay,
-  setBaseTime, resetAll,
+  resetAll,
 } from "../src/core.js";
 
 let state;
@@ -290,20 +290,111 @@ describe("daily records", () => {
   });
 });
 
-describe("setBaseTime / resetAll", () => {
-  it("setBaseTime 設 t0 且可還原", () => {
-    state = setBaseTime(state, "11:30");
-    expect(state.t0).toBe("11:30");
-    expect(state.history.length).toBeGreaterThan(0);
-  });
+describe("resetAll", () => {
   it("resetAll 全歸零但保留 minutes 與 t0", () => {
     state = orderUpTo(state, 58);
     state = setMinutes(state, 20);
-    state = setBaseTime(state, "10:00");
+    state.t0 = "10:00";
     const s = resetAll(state);
     expect(s.maxOrdered).toBe(0);
     expect(s.minutes).toBe(20);
     expect(s.t0).toBe("10:00");
     expect(ballStatus(s, 58)).toBe("gray");
+  });
+});
+
+describe("createState 新欄位", () => {
+  it("scheduled 與 grayOut 預設為空陣列", () => {
+    expect(state.scheduled).toEqual([]);
+    expect(state.grayOut).toEqual([]);
+  });
+});
+
+describe("orderUpTo 與 grayOut", () => {
+  it("grayOut 的球可重新下訂（移出 grayOut）", () => {
+    state = orderUpTo(state, 58);
+    state.grayOut = [55];
+    state = orderUpTo(state, 55);
+    expect(ballStatus(state, 55)).toBe("blue");
+    expect(state.grayOut).not.toContain(55);
+  });
+  it("已剪的球不可重新下訂（no-op）", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 5, "15:00");
+    state = setCurrent(state, 6, "16:00");
+    const before = state.maxOrdered;
+    state = orderUpTo(state, 5);
+    expect(state.maxOrdered).toBe(before);
+    expect(ballStatus(state, 5)).toBe("cut");
+  });
+});
+
+describe("batchCut 跳過已處理球", () => {
+  it("跳過 current / overdue / scheduled / grayOut，其餘照剪", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 18, "15:00");
+    state = toggleOverdue(state, 10);
+    state.scheduled = [{ n: 20, time: "15:00" }];
+    state.grayOut = [22];
+    state = batchCut(state, 35);
+    expect(ballStatus(state, 17)).toBe("cut");
+    expect(ballStatus(state, 18)).toBe("orange");
+    expect(ballStatus(state, 10)).toBe("overdue");
+    expect(ballStatus(state, 20)).toBe("blue");
+    expect(ballStatus(state, 22)).toBe("gray");
+    expect(ballStatus(state, 34)).toBe("cut");
+  });
+});
+
+describe("queuePositions 排除 grayOut", () => {
+  it("grayOut 的球不出現在佇列", () => {
+    state = orderUpTo(state, 30);
+    state.grayOut = [22, 25];
+    const seq = queuePositions(state);
+    expect(seq).not.toContain(22);
+    expect(seq).not.toContain(25);
+    expect(seq[0]).toBe(1);
+  });
+});
+
+describe("estimate 與 scheduled", () => {
+  it("有預定時間的球：time 顯示預定時間", () => {
+    state = orderUpTo(state, 30);
+    state.scheduled = [{ n: 19, time: "14:30" }];
+    const e = estimate(state, 19);
+    expect(e.time).toBe("14:30");
+  });
+  it("grayOut 的球回傳 null", () => {
+    state = orderUpTo(state, 30);
+    state.grayOut = [25];
+    expect(estimate(state, 25)).toBeNull();
+  });
+});
+
+describe("rollover / resetDay / resetAll 清空新欄位", () => {
+  it("rollover 跨日清空 scheduled 與 grayOut", () => {
+    state = orderUpTo(state, 58);
+    state.scheduled = [{ n: 10, time: "15:00" }];
+    state.grayOut = [12];
+    state.date = "2026-09-11";
+    const r = rollover(state, "2026-09-12");
+    expect(r.state.scheduled).toEqual([]);
+    expect(r.state.grayOut).toEqual([]);
+  });
+  it("resetDay 清空 scheduled 與 grayOut", () => {
+    state = orderUpTo(state, 58);
+    state.scheduled = [{ n: 10, time: "15:00" }];
+    state.grayOut = [12];
+    const s = resetDay(state);
+    expect(s.scheduled).toEqual([]);
+    expect(s.grayOut).toEqual([]);
+  });
+  it("resetAll 清空 scheduled 與 grayOut", () => {
+    state = orderUpTo(state, 58);
+    state.scheduled = [{ n: 10, time: "15:00" }];
+    state.grayOut = [12];
+    const s = resetAll(state);
+    expect(s.scheduled).toEqual([]);
+    expect(s.grayOut).toEqual([]);
   });
 });
