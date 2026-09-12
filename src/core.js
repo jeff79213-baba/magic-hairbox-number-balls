@@ -171,7 +171,8 @@ export function estimate(state, n) {
 }
 
 export function recordDaily(daily, date, maxOrdered) {
-  if (maxOrdered > 0) daily[date] = maxOrdered;
+  if (maxOrdered > 0) daily[date] = Math.max(daily[date] || 0, maxOrdered);
+  return daily;
 }
 
 export function pruneDaily(daily, today) {

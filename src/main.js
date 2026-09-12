@@ -43,6 +43,18 @@ let daily = loadDaily();
 pruneDaily(daily, todayStr());
 saveDaily(daily);
 
+function performRollover() {
+  const today = todayStr();
+  if (state.date === today) return;
+  const r = rollover(state, today);
+  Object.assign(daily, r.daily);
+  pruneDaily(daily, today);
+  saveDaily(daily);
+  state = r.state;
+  saveState(state);
+  renderAll();
+}
+
 function makeBallEl(n) {
   const el = document.createElement("div");
   el.className = "ball";
@@ -263,15 +275,7 @@ function updateClock() {
   const mm = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
   clockEl.textContent = `${hh}:${mm}:${ss}`;
-  if (state.date !== todayStr()) {
-    const r = rollover(state, todayStr());
-    if (Object.keys(r.daily).length) Object.assign(daily, r.daily);
-    pruneDaily(daily, todayStr());
-    saveDaily(daily);
-    state = r.state;
-    saveState(state);
-    renderAll();
-  }
+  performRollover();
 }
 
 function nowHHMM() {
@@ -284,14 +288,7 @@ setInterval(updateClock, 1000);
 setInterval(renderAll, BASE);
 
 (function init() {
-  const r = rollover(state, todayStr());
-  if (Object.keys(r.daily).length) {
-    Object.assign(daily, r.daily);
-    pruneDaily(daily, todayStr());
-    saveDaily(daily);
-  }
-  state = r.state;
-  saveState(state);
+  performRollover();
   updateClock();
   renderAll();
 })();

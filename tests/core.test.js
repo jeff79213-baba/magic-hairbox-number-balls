@@ -239,6 +239,14 @@ describe("daily records", () => {
     expect(daily["2026-09-11"]).toBe(58);
   });
 
+  it("recordDaily 重複記錄保留當天最大（不覆蓋）", () => {
+    const daily = recordDaily({}, "2026-09-12", 40);
+    recordDaily(daily, "2026-09-12", 30);
+    expect(daily["2026-09-12"]).toBe(40);
+    recordDaily(daily, "2026-09-12", 50);
+    expect(daily["2026-09-12"]).toBe(50);
+  });
+
   it("pruneDaily 保留 90 天以內的資料", () => {
     const today = "2026-09-12";
     const daily = {
