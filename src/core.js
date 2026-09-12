@@ -28,6 +28,7 @@ export function apply(state, mutator) {
   delete s.history;
   const before = clone(s); // 存入 mutation 前的快照，undo 才能還原
   mutator(s);
+  if (JSON.stringify(before) === JSON.stringify(s)) return state; // mutation 無實際變更（no-op），不推入 history
   history.push(before);
   if (history.length > 100) history.shift();
   return { ...s, history };
@@ -64,6 +65,7 @@ export function orderUpTo(state, n) {
 export function setCurrent(state, n, nowHHMM = null) {
   const st = ballStatus(state, n);
   if (st === "gray" || st === "cut") return state;
+  if (state.current === n) return state; // 已叫號的目前球：no-op，不重錨 t0、不推 history
   return apply(state, (s) => {
     if (s.current !== null && s.current !== n) cutPush(s, s.current);
     s.current = n;
@@ -169,7 +171,8 @@ export function estimate(state, n) {
 }
 
 export function recordDaily(daily, date, maxOrdered) {
-  if (maxOrdered > 0) daily[date] = maxOrdered;
+  if (maxOrdered > 0) daily[date] = Math.max(daily[date] || 0, maxOrdered);
+  return daily;
 }
 
 export function pruneDaily(daily, today) {

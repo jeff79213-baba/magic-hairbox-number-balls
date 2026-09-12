@@ -34,6 +34,13 @@ describe("orderUpTo", () => {
     state = orderUpTo(state, 151);
     expect(state.maxOrdered).toBe(0);
   });
+  it("重複下訂已達上限：no-op 不推 history", () => {
+    state = orderUpTo(state, 58);
+    const len = state.history.length;
+    state = orderUpTo(state, 58);
+    expect(state.maxOrdered).toBe(58);
+    expect(state.history.length).toBe(len);
+  });
 });
 
 describe("setCurrent", () => {
@@ -67,6 +74,15 @@ describe("setCurrent", () => {
     const before = state.current;
     state = setCurrent(state, 5, "16:00");
     expect(state.current).toBe(before);
+  });
+  it("同球重複叫號：no-op，不重錨 t0、不加 history", () => {
+    state = orderUpTo(state, 58);
+    state = setCurrent(state, 18, "15:00");
+    expect(state.t0).toBe("15:00");
+    const len = state.history.length;
+    state = setCurrent(state, 18, "16:00");
+    expect(state.t0).toBe("15:00");
+    expect(state.history.length).toBe(len);
   });
 });
 
@@ -221,6 +237,14 @@ describe("daily records", () => {
     expect(daily).toEqual({});
     recordDaily(daily, "2026-09-11", 58);
     expect(daily["2026-09-11"]).toBe(58);
+  });
+
+  it("recordDaily 重複記錄保留當天最大（不覆蓋）", () => {
+    const daily = recordDaily({}, "2026-09-12", 40);
+    recordDaily(daily, "2026-09-12", 30);
+    expect(daily["2026-09-12"]).toBe(40);
+    recordDaily(daily, "2026-09-12", 50);
+    expect(daily["2026-09-12"]).toBe(50);
   });
 
   it("pruneDaily 保留 90 天以內的資料", () => {

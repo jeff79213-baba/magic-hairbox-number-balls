@@ -26,7 +26,7 @@ function loadState() {
 }
 
 function saveState(s) {
-  localStorage.setItem("mhb-state", JSON.stringify(s));
+  try { localStorage.setItem("mhb-state", JSON.stringify(s)); } catch (e) { /* storage 寫入失敗：忽略 */ }
 }
 
 function loadDaily() {
@@ -35,13 +35,25 @@ function loadDaily() {
 }
 
 function saveDaily(d) {
-  localStorage.setItem(recordKey, JSON.stringify(d));
+  try { localStorage.setItem(recordKey, JSON.stringify(d)); } catch (e) { /* storage 寫入失敗：忽略 */ }
 }
 
 let state = loadState();
 let daily = loadDaily();
 pruneDaily(daily, todayStr());
 saveDaily(daily);
+
+function performRollover() {
+  const today = todayStr();
+  if (state.date === today) return;
+  const r = rollover(state, today);
+  Object.assign(daily, r.daily);
+  pruneDaily(daily, today);
+  saveDaily(daily);
+  state = r.state;
+  saveState(state);
+  renderAll();
+}
 
 function makeBallEl(n) {
   const el = document.createElement("div");
@@ -66,9 +78,8 @@ for (let i = 1; i <= TOTAL; i++) {
 }
 
 function renderAll() {
-  const seqSet = new Set(queuePositions(state));
   const seq = queuePositions(state);
-  const idxMap = new Map(seq.map((n, i) => [n, i]));
+  const seqSet = new Set(seq);
   for (let i = 0; i < TOTAL; i++) {
     const n = i + 1;
     const el = balls[i];
@@ -84,7 +95,6 @@ function renderAll() {
       accumEl.textContent = "";
       whenEl.textContent = "";
     }
-    void idxMap;
   }
 }
 
@@ -106,8 +116,7 @@ let gestureStart = null;
 
 function refreshTop() {
   overdueModeBtn.classList.toggle("active", overdueMode);
-  const valid = `${parseInt(minutesInput.value, 10) || 15}`;
-  minutesInput.value = valid;
+  minutesInput.value = state.minutes;
 }
 
 function commit(next) {
@@ -145,7 +154,7 @@ grid.addEventListener("pointermove", (e) => {
   if (!gestureStart || e.pointerId !== gestureStart.id) return;
   const dx = e.clientX - gestureStart.x;
   const dy = e.clientY - gestureStart.y;
-  if (Math.abs(dx) > 40 || Math.abs(dy) > 40) {
+  if (Math.abs(dx) > 30 || Math.abs(dy) > 30) {
     gestureStart.done = true;
     if (Math.abs(dy) > Math.abs(dx)) {
       handleBallAction(gestureStart.n, dy < 0 ? "up" : "down");
@@ -161,7 +170,7 @@ grid.addEventListener("pointerup", (e) => {
   if (g.done) return;
   const dx = e.clientX - g.x;
   const dy = e.clientY - g.y;
-  if (Math.hypot(dx, dy) < 28) handleBallAction(g.n, "tap");
+  if (Math.hypot(dx, dy) < 30) handleBallAction(g.n, "tap");
 });
 grid.addEventListener("pointercancel", () => { gestureStart = null; });
 grid.addEventListener("dblclick", (e) => e.preventDefault());
@@ -193,8 +202,8 @@ function scrollToBall(n) {
   const el = balls[idx];
   if (!el) return;
   const area = $("gridArea");
-  const diff = el.offsetTop - area.offsetTop - 8;
-  area.scrollTo({ top: diff, behavior: "smooth" });
+  const top = Math.max(0, el.getBoundingClientRect().top - area.getBoundingClientRect().top + area.scrollTop - 8);
+  area.scrollTo({ top, behavior: "smooth" });
 }
 
 // --- 基準時間彈窗 ---
@@ -204,7 +213,9 @@ function openTimeDialog() {
 }
 $("btnTimeCancel").addEventListener("click", () => dlgTime.classList.add("hidden"));
 $("btnTimeOk").addEventListener("click", () => {
-  commit(setBaseTime(state, baseTimeInput.value || state.t0));
+  const val = baseTimeInput.value || state.t0;
+  if (!/^\d{2}:\d{2}$/.test(val)) return;
+  commit(setBaseTime(state, val));
   dlgTime.classList.add("hidden");
 });
 
@@ -236,7 +247,7 @@ btnReset.addEventListener("click", () => dlgConfirm.classList.remove("hidden"));
 $("btnConfirmNo").addEventListener("click", () => dlgConfirm.classList.add("hidden"));
 $("btnConfirmYes").addEventListener("click", () => {
   if (state.maxOrdered > 0 && state.date === todayStr()) {
-    daily[state.date] = state.maxOrdered;
+    daily[state.date] = Math.max(daily[state.date] || 0, state.maxOrdered);
   }
   pruneDaily(daily, todayStr());
   saveDaily(daily);
@@ -264,6 +275,7 @@ function updateClock() {
   const mm = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
   clockEl.textContent = `${hh}:${mm}:${ss}`;
+  performRollover();
 }
 
 function nowHHMM() {
@@ -276,14 +288,7 @@ setInterval(updateClock, 1000);
 setInterval(renderAll, BASE);
 
 (function init() {
-  const r = rollover(state, todayStr());
-  if (Object.keys(r.daily).length) {
-    Object.assign(daily, r.daily);
-    pruneDaily(daily, todayStr());
-    saveDaily(daily);
-  }
-  state = r.state;
-  saveState(state);
+  performRollover();
   updateClock();
   renderAll();
 })();
