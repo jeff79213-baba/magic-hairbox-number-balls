@@ -12,6 +12,19 @@ const grid = $("grid");
 const clockEl = $("clock");
 const overdueHintEl = $("overdueHint");
 const recordKey = "mhb-daily";
+const viewKey = "mhb-view";
+const btnView = $("btnView");
+
+function isCellView() { return grid.classList.contains("cells"); }
+function updateViewBtn() { btnView.textContent = isCellView() ? "切換球" : "切換格子"; }
+
+function loadViewPref() {
+  try { return localStorage.getItem(viewKey) || "balls"; }
+  catch (e) { return "balls"; }
+}
+function saveViewPref(mode) {
+  try { localStorage.setItem(viewKey, mode); } catch (e) { /* 忽略 */ }
+}
 
 function loadState() {
   try {
@@ -331,6 +344,13 @@ if (document.documentElement.requestFullscreen && document.fullscreenEnabled !==
   btnFullscreen.classList.add("hidden");
 }
 
+// --- 版面切換 ---
+btnView.addEventListener("click", () => {
+  grid.classList.toggle("cells");
+  saveViewPref(isCellView() ? "cells" : "balls");
+  updateViewBtn();
+});
+
 refreshTop();
 
 function updateClock() {
@@ -352,6 +372,8 @@ setInterval(updateClock, 1000);
 setInterval(renderAll, BASE);
 
 (function init() {
+  if (loadViewPref() === "cells") grid.classList.add("cells");
+  updateViewBtn();
   performRollover();
   updateClock();
   renderAll();

@@ -149,6 +149,72 @@ h1 { margin: 0; font-size: 18px; padding-right: 8px; }
 .panel .actions button.danger { color: var(--cut); border-color: var(--cut); }
 #recordList { max-height: 46vh; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
 #recordList li { display: flex; justify-content: space-between; padding: 6px 2px; border-bottom: 1px dashed #eee; font-size: 14px; }
+#grid.cells {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, clamp(40px, 6vw, 56px)), 1fr));
+  gap: 2px;
+  padding: 8px 8px 40px;
+  align-items: stretch;
+}
+#grid.cells .ball {
+  aspect-ratio: 1 / 1;
+  border-radius: 3px;
+  gap: 0;
+  padding: 1px 0;
+  justify-content: center;
+  background: var(--gray);
+  border: 1px solid rgba(0,0,0,.08);
+}
+#grid.cells .ball .num {
+  width: 100%;
+  border-radius: 0;
+  border: 0;
+  aspect-ratio: auto;
+  font-size: clamp(13px, 3.5vw, 20px);
+  font-weight: 400;
+  line-height: 1.15;
+  color: #fff;
+  position: static;
+}
+#grid.cells .ball:active .num { transform: none; }
+#grid.cells .ball[data-st="blue"] { background: var(--blue); }
+#grid.cells .ball[data-st="blue"] .num { background: transparent; }
+#grid.cells .ball[data-st="orange"] {
+  background: var(--orange);
+  box-shadow: 0 0 0 4px rgba(240,147,0,.28), 0 0 12px rgba(240,147,0,.5);
+}
+#grid.cells .ball[data-st="orange"] .num { background: transparent; box-shadow: none; }
+#grid.cells .ball[data-st="overdue"] { background: var(--blue); box-shadow: 0 0 0 2px #fff, 0 0 0 5px var(--ring); }
+#grid.cells .ball[data-st="overdue"] .num { background: transparent; box-shadow: none; }
+#grid.cells .ball[data-st="overdue"] .num::after { content: none; }
+#grid.cells .ball[data-st="cut"] { background: repeating-linear-gradient(45deg, #e8e8e8 0 6px, var(--cut) 6px 12px); }
+#grid.cells .ball[data-st="cut"] .num { background: transparent; color: #5b1212; }
+#grid.cells .ball[data-st="gray"] { background: var(--gray); }
+#grid.cells .ball[data-st="gray"] .num { background: transparent; color: rgba(255,255,255,.9); }
+#grid.cells .ball .accum {
+  font-size: clamp(8px, 2vw, 10px);
+  color: rgba(255,255,255,.92);
+  min-height: 9px;
+  line-height: 1.1;
+}
+#grid.cells .ball[data-st="cut"] .accum { color: #5b1212; }
+#grid.cells .ball .when {
+  font-size: clamp(9px, 2.3vw, 11px);
+  font-weight: 600;
+  color: rgba(255,255,255,.95);
+  min-height: 10px;
+  line-height: 1.15;
+}
+#grid.cells .ball[data-st="cut"] .when { color: #5b1212; }
+#grid.cells .ball[data-sched="1"] .when {
+  color: #7b1fa2;
+  font-weight: 700;
+  background: rgba(255,255,255,.95);
+  border-radius: 3px;
+  min-width: 24px;
+  text-align: center;
+}
+#grid.cells .ball[data-sched="1"] .when { visibility: visible; }
+
 .ball[data-sched="1"] .when { color: #7b1fa2; font-weight: 700; }
 /* 有預定時間的球：即使是灰色或已剪，也把預定時間顯示出來（提示作用）*/
 .ball[data-sched="1"] .when { visibility: visible; }
