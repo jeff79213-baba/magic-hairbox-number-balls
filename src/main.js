@@ -241,9 +241,6 @@ grid.addEventListener("pointerup", (e) => {
 grid.addEventListener("pointercancel", () => { gestureStart = null; });
 grid.addEventListener("dblclick", (e) => e.preventDefault());
 document.addEventListener("gesturestart", (e) => e.preventDefault());
-document.addEventListener("touchmove", (e) => {
-  if (e.target.closest && e.target.closest(".ball")) e.preventDefault();
-}, { passive: false });
 
 // --- 控制列 ---
 minutesInput.addEventListener("change", () => {
