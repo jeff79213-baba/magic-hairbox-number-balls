@@ -1,0 +1,15 @@
+{
+  "hosting": {
+    "site": "mhb-legacy-sk",
+    "public": ".",
+    "ignore": ["firebase.json", ".firebaserc", "**/.*"],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache" }
+        ]
+      }
+    ]
+  }
+}

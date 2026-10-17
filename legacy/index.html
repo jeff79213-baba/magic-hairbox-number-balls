@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>相容性測試</title>
+<style>
+  body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; margin: 12px; }
+  h1 { font-size: 17px; line-height: 1.5; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, 48px); grid-row-gap: 6px; grid-column-gap: 6px; }
+  .ball { width: 48px; height: 48px; border-radius: 50%; background: #1a73e8; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+  .cell { width: 48px; height: 48px; border-radius: 3px; background: #9aa0a6; color: #fff; display: flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+<h1>相容性測試：若下方出現圓球與方格，代表此裝置可執行本 App 的舊語法版本</h1>
+<div id="grid"></div>
+<script>
+(function () {
+  var grid = document.getElementById("grid");
+  for (var i = 1; i <= 24; i++) {
+    var el = document.createElement("div");
+    el.className = (i % 2 === 0) ? "ball" : "cell";
+    el.textContent = i;
+    grid.appendChild(el);
+  }
+})();
+</script>
+</body>
+</html>
