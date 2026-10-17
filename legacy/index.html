@@ -2,29 +2,101 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>相容性測試</title>
-<style>
-  body { font-family: -apple-system, "Microsoft JhengHei", sans-serif; margin: 12px; }
-  h1 { font-size: 17px; line-height: 1.5; }
-  #grid { display: grid; grid-template-columns: repeat(auto-fill, 48px); grid-row-gap: 6px; grid-column-gap: 6px; }
-  .ball { width: 48px; height: 48px; border-radius: 50%; background: #1a73e8; color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700; }
-  .cell { width: 48px; height: 48px; border-radius: 3px; background: #9aa0a6; color: #fff; display: flex; align-items: center; justify-content: center; }
-</style>
+<meta name="viewport"
+  content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="format-detection" content="telephone=no">
+<title>魔法箱人數球</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<h1>相容性測試：若下方出現圓球與方格，代表此裝置可執行本 App 的舊語法版本</h1>
-<div id="grid"></div>
-<script>
-(function () {
-  var grid = document.getElementById("grid");
-  for (var i = 1; i <= 24; i++) {
-    var el = document.createElement("div");
-    el.className = (i % 2 === 0) ? "ball" : "cell";
-    el.textContent = i;
-    grid.appendChild(el);
-  }
-})();
-</script>
+<header id="topbar">
+  <div class="top-row">
+    <h1>魔法箱人數球</h1>
+    <div id="overdueHint" class="overdue-hint" title="目前過號的號碼（點號碼可跳到該球）"></div>
+    <div id="clock" class="clock">--:--</div>
+  </div>
+
+  <div class="top-row" id="quickRow">
+    <span class="row-label">快捷跳號</span>
+    <div id="quickBtns">
+      <button type="button" data-n="20">20</button>
+      <button type="button" data-n="40">40</button>
+      <button type="button" data-n="60">60</button>
+      <button type="button" data-n="80">80</button>
+      <button type="button" data-n="100">100</button>
+      <button type="button" data-n="120">120</button>
+      <button type="button" data-n="140">140</button>
+    </div>
+  </div>
+
+  <div class="top-row" id="colorRow">
+    <span class="row-label">顏色</span>
+    <span class="legend"><i class="sw gray"></i>未下訂</span>
+    <span class="legend"><i class="sw blue"></i>已下訂</span>
+    <span class="legend"><i class="sw orange"></i>亮燈中</span>
+    <span class="legend"><i class="sw red"></i>已剪</span>
+    <span class="legend"><i class="sw ring"></i>過號</span>
+  </div>
+
+  <div class="top-row" id="gestureLegend">
+    <span class="row-label">滑動手勢</span>
+    <span class="gest">← 批量剪完</span>
+    <span class="gest">→ 下訂</span>
+  </div>
+
+  <div class="top-row" id="controlRow">
+    <label class="ctrl">每球<input id="minutesInput" type="number" min="1" max="240" value="15" inputmode="numeric">分</label>
+    <button type="button" id="btnView">切換格子</button>
+    <button type="button" id="btnLight" class="ctrl-mode">亮燈</button>
+    <button type="button" id="btnSchedule" class="ctrl-mode">預定時間</button>
+    <button type="button" id="btnUnorder" class="ctrl-mode">未下訂</button>
+    <button type="button" id="btnCut" class="ctrl-mode">剪完</button>
+    <button type="button" id="overdueMode" class="ctrl-mode">過號</button>
+    <button type="button" id="btnRecords">每日紀錄</button>
+    <button type="button" id="btnReset" class="danger">每日重置</button>
+    <button type="button" id="btnUndo">返回</button>
+    <button type="button" id="btnFullscreen">全螢幕</button>
+  </div>
+</header>
+
+<main id="gridArea">
+  <div id="grid" aria-label="人數球"></div>
+</main>
+
+<div id="dlgTime" class="modal hidden">
+  <div class="panel">
+    <h2>預定時間</h2>
+    <p class="hint">輸入此顆號碼球的預約時間，該球時刻改顯示這組時間。</p>
+    <input id="baseTimeInput" type="time">
+    <div class="actions">
+      <button type="button" id="btnTimeCancel">取消</button>
+      <button type="button" id="btnTimeOk">套用</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgRecords" class="modal hidden">
+  <div class="panel">
+    <h2>每日紀錄（最近 90 天）</h2>
+    <ul id="recordList"></ul>
+    <div class="actions">
+      <button type="button" id="btnRecordsClose">關閉</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgConfirm" class="modal hidden">
+  <div class="panel">
+    <h2>每日重置</h2>
+    <p>確認要全部歸零、開始新的一天？</p>
+    <div class="actions">
+      <button type="button" id="btnConfirmNo">取消</button>
+      <button type="button" id="btnConfirmYes" class="danger">確認重置</button>
+    </div>
+  </div>
+</div>
+
+<script src="core.js"></script>
+<script src="app.js"></script>
 </body>
 </html>
