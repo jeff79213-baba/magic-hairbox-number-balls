@@ -22,6 +22,10 @@ describe("legacy CSS 舊寫法", () => {
     [/\binset\s*:/, "inset 需 Safari 14.1"],
     [/(^|[^-])\bgap\s*:/m, "flex/grid 的 gap 需 Safari 14.1（請用 grid-gap 或 margin）"],
     [/\bmin\s*\(/, "min() 需 Safari 13"],
+    [
+      /#[0-9a-fA-F]{3,8}\s+-?[\d.]+(?:px|%|em|rem)?\s+-?[\d.]+(?:px|%|em|rem)/,
+      "雙位置色彩停點（如 #fff 0 6px）需 Safari 12.1，請拆成兩個單位置停點",
+    ],
   ];
   it("style.css 不含 Safari 10 不支援的屬性（若檔案存在）", () => {
     if (!existsSync(stylePath)) return;
